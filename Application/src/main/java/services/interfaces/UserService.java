@@ -1,7 +1,6 @@
 package services.interfaces;
 
 import entities.enums.HairColor;
-import entities.User;
 
 import java.util.Map;
 
