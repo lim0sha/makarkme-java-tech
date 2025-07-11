@@ -1,1 +1,4 @@
 .idea
+/Application/target
+/Presentation/target
+/Domain/target
