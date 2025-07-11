@@ -1,116 +1,70 @@
 package services;
 
-import entities.Account;
-import entities.Transaction;
-import entities.User;
 import interfaces.AccountRepository;
 import interfaces.TransactionRepository;
-import interfaces.UserRepository;
+import services.interfaces.TransactionService;
+import utilities.interfaces.FriendshipUtility;
+import utilities.interfaces.IdGenerationUtility;
 import services.interfaces.PaymentService;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
-
-/**
- * Сервис для управления операциями с платежами: создание счетов, снятие, пополнение, переводы.
- * Работает с репозиториями пользователей, счетов и транзакций.
- */
+import static entities.enums.TypeTransaction.*;
 
 public class PaymentServiceImpl implements PaymentService {
-    private final UserRepository userRepository;
     private final AccountRepository accountRepository;
-    private final TransactionRepository transactionRepository;
+    private final FriendshipUtility friendshipUtility;
+    private final TransactionService transactionService;
 
-    private final AtomicLong accountIdGenerator = new AtomicLong(1);
-    private final AtomicLong transactionIdGenerator = new AtomicLong(1);
-
-    public PaymentServiceImpl(UserRepository userRepository, AccountRepository accountRepository, TransactionRepository transactionRepository) {
-        this.userRepository = userRepository;
+    public PaymentServiceImpl(AccountRepository accountRepository, TransactionRepository transactionRepository, IdGenerationUtility idGenerationUtility, FriendshipUtility friendshipUtility, TransactionService transactionService) {
         this.accountRepository = accountRepository;
-        this.transactionRepository = transactionRepository;
+        this.friendshipUtility = friendshipUtility;
+        this.transactionService = transactionService;
     }
 
-    /**
-     * Создаёт новый счёт для пользователя.
-     *
-     * @param userId ID пользователя
-     * @return созданный счёт
-     */
     @Override
-    public Account createAccount(long userId) {
-        long accountId = generateUniqueAccountId();
-
-        if (accountRepository.findById(accountId).isPresent()) {
-            throw new IllegalArgumentException("Account with id '" + accountId + "' already exists");
-        }
-
-        Account account = new Account(accountId, userId, 0, new HashMap<>());
-        accountRepository.saveAccount(account);
-        return account;
-    }
-
-    /**
-     * Выполняет пополнение счёта.
-     *
-     * @param accountId ID счёта
-     * @param amount сумма для пополнения
-     * @return true, если операция успешна
-     */
-    @Override
-    public boolean replenishmentAccount(long accountId, double amount) {
-        Account account = accountRepository.findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account with id '" + accountId + "' not found."));
+    public void replenishAmount(Long accountId, Double amount) {
+        var account = accountRepository.findById(accountId).orElseThrow(() ->
+                new IllegalArgumentException("Account with id '" + accountId + "' not found."));
 
         if (amount <= 0) {
             throw new IllegalArgumentException("Amount must be greater than zero.");
         }
+        transactionService.createTransaction(accountId, accountId, amount, REPLENISHMENT);
+        double newBalance = account.getBalance() + amount;
+        account.setBalance(newBalance);
 
-        Transaction newTransaction = createTransaction(accountId, accountId, amount);
-
-        account.balance += amount;
-
-        return accountRepository.updateAccount(account) && transactionRepository.saveTransaction(newTransaction);
+        var accountResult = accountRepository.updateAccount(account);
+        if (!accountResult.getResult()) {
+            throw new IllegalArgumentException("Failed to update account: " + accountResult.getMessage());
+        }
     }
 
-    /**
-     * Выполняет снятие средств со счёта.
-     *
-     * @param accountId ID счёта
-     * @param amount сумма для снятия
-     * @return true, если операция успешна
-     * @throws IllegalArgumentException если средств недостаточно
-     */
     @Override
-    public boolean withdrawalAccount(long accountId, double amount) {
-        Account account = accountRepository.findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account with id '" + accountId + "' not found."));
+    public void withdrawAmount(Long accountId, Double amount) {
+        var account = accountRepository.findById(accountId).orElseThrow(() ->
+                new IllegalArgumentException("Account with id '" + accountId + "' not found."));
 
         if (amount <= 0) {
             throw new IllegalArgumentException("Amount must be greater than zero.");
         }
-
-        if (account.balance < amount) {
+        if (account.getBalance() < amount) {
             throw new IllegalArgumentException("Insufficient funds.");
         }
+        transactionService.createTransaction(accountId, accountId, amount, WITHDRAWAL);
+        double newBalance = account.getBalance() - amount;
+        account.setBalance(newBalance);
 
-        Transaction newTransaction = createTransaction(accountId, accountId, amount);
-
-        account.balance -= amount;
-
-        return accountRepository.updateAccount(account) && transactionRepository.saveTransaction(newTransaction);
+        var accountResult = accountRepository.updateAccount(account);
+        if (!accountResult.getResult()) {
+            throw new IllegalArgumentException("Failed to update account: " + accountResult.getMessage());
+        }
     }
 
-    /**
-     * Выполняет перевод денег с одного счёта на другой.
-     *
-     * @param fromAccountId ID счёта отправителя
-     * @param toAccountId ID счёта получателя
-     * @param amount сумма перевода
-     * @return true, если операция успешна
-     */
     @Override
-    public boolean transfer(long fromAccountId, long toAccountId, double amount) {
-        Account fromAccount = accountRepository.findById(fromAccountId).orElseThrow(() -> new IllegalArgumentException("Account with id '" + fromAccountId + "' not found."));
-        Account toAccount = accountRepository.findById(toAccountId).orElseThrow(() -> new IllegalArgumentException("Account with id '" + toAccountId + "' not found."));
+    public void transfer(Long fromAccountId, Long toAccountId, Double amount) {
+        var fromAccount = accountRepository.findById(fromAccountId).orElseThrow(() ->
+                new IllegalArgumentException("Account with id '" + fromAccountId + "' not found."));
+        var toAccount = accountRepository.findById(toAccountId).orElseThrow(() ->
+                new IllegalArgumentException("Account with id '" + toAccountId + "' not found."));
 
         if (amount <= 0) {
             throw new IllegalArgumentException("Amount must be greater than zero.");
@@ -122,7 +76,7 @@ public class PaymentServiceImpl implements PaymentService {
         double commission;
         if (fromUserId == toUserId) {
             commission = 0;
-        } else if (isFriend(fromUserId, toUserId)) {
+        } else if (friendshipUtility.isFriend(fromUserId, toUserId)) {
             commission = amount * 0.03;
         } else {
             commission = amount * 0.10;
@@ -130,53 +84,24 @@ public class PaymentServiceImpl implements PaymentService {
 
         double totalAmount = amount + commission;
 
-        if (fromAccount.balance < totalAmount) {
+        if (fromAccount.getBalance() < totalAmount) {
             throw new IllegalArgumentException("Insufficient funds.");
         }
 
-        fromAccount.balance -= totalAmount;
-        toAccount.balance += amount;
+        double newBalanceFromAccount = fromAccount.getBalance() - totalAmount;
+        double newBalanceToAccount = toAccount.getBalance() + totalAmount;
+        fromAccount.setBalance(newBalanceFromAccount);
+        toAccount.setBalance(newBalanceToAccount);
 
-        Transaction newTransaction = createTransaction(fromAccountId, toAccountId, amount);
+        transactionService.createTransaction(fromAccountId, toAccountId, amount, TRANSFER);
 
-        return accountRepository.updateAccount(fromAccount) && accountRepository.updateAccount(toAccount) && transactionRepository.saveTransaction(newTransaction);
-    }
-
-    private Transaction createTransaction(long fromAccountId, long toAccountId, double amount) {
-        long transactionId = generateUniqueTransactionId();
-
-        if (transactionRepository.findById(transactionId).isPresent()) {
-            throw new IllegalArgumentException("Transaction with id '" + transactionId + "' already exists");
+        var fromAccountResult = accountRepository.updateAccount(fromAccount);
+        if (!fromAccountResult.getResult()) {
+            throw new IllegalArgumentException("Failed to update account: " + fromAccountResult.getMessage());
         }
-
-        return new Transaction(transactionId, fromAccountId, toAccountId, amount);
-    }
-
-    private long generateUniqueAccountId() {
-        while (true) {
-            long id = accountIdGenerator.getAndIncrement();
-            if (accountRepository.findById(id).isEmpty()) {
-                return id;
-            }
+        var toAccountResult = accountRepository.updateAccount(toAccount);
+        if (!toAccountResult.getResult()) {
+            throw new IllegalArgumentException("Failed to update account: " + toAccountResult.getMessage());
         }
-    }
-
-    private long generateUniqueTransactionId() {
-        while (true) {
-            long id = transactionIdGenerator.getAndIncrement();
-            if (transactionRepository.findById(id).isEmpty()) {
-                return id;
-            }
-        }
-    }
-
-    private boolean isFriend(long firstUserId, long secondUserId) {
-        User firstUser = userRepository.findById(firstUserId).orElseThrow(() -> new IllegalArgumentException("User with id '" + firstUserId + "' not found."));
-        User secondUser = userRepository.findById(secondUserId).orElseThrow(() -> new IllegalArgumentException("User with id '" + secondUserId + "' not found."));
-
-        List<Long> friendsIdFirstUser = firstUser.getFriendsId();
-        List<Long> friendsIdSecondUser = secondUser.getFriendsId();
-
-        return friendsIdFirstUser.contains(secondUserId) && friendsIdSecondUser.contains(firstUserId);
     }
 }

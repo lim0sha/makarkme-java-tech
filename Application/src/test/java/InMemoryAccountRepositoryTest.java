@@ -1,85 +1,67 @@
 import entities.Account;
+import entities.resultTypes.AccountResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import repositories.InMemoryAccountRepository;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class InMemoryAccountRepositoryTest {
 
     private InMemoryAccountRepository repository;
+    private Account account;
 
     @BeforeEach
     void setUp() {
         repository = new InMemoryAccountRepository();
+        account = new Account(1L, 1L, 100.0);
     }
 
     @Test
-    void saveAccount_ShouldSave_WhenAccountIdIsUnique() {
-        Account account = new Account(1L, 100L, 500.0, new HashMap<>());
-        boolean saved = repository.saveAccount(account);
+    void saveAccount_ShouldSuccess_WhenAccountNotExists() {
+        AccountResult result = repository.saveAccount(account);
 
-        assertTrue(saved);
-        Optional<Account> found = repository.findById(1L);
-        assertTrue(found.isPresent());
-        assertEquals(500.0, found.get().getBalance());
-        assertEquals(100L, found.get().getUserId());
+        assertTrue(result.getResult());
+        assertEquals("Successfully saved account with id:1", result.getMessage());
+        assertTrue(repository.findById(1L).isPresent());
     }
 
     @Test
-    void saveAccount_ShouldReturnFalse_WhenAccountIdExists() {
-        Account account1 = new Account(1L, 100L, 500.0, new HashMap<>());
-        Account account2 = new Account(1L, 101L, 700.0, new HashMap<>());
-
-        assertTrue(repository.saveAccount(account1));
-        assertFalse(repository.saveAccount(account2));  // accountId уже существует
-    }
-
-    @Test
-    void updateAccount_ShouldUpdateExistingAccount() {
-        Account account = new Account(1L, 100L, 500.0, new HashMap<>());
+    void saveAccount_ShouldFail_WhenAccountExists() {
         repository.saveAccount(account);
+        AccountResult result = repository.saveAccount(account);
 
-        Account updatedAccount = new Account(1L, 100L, 1000.0, new HashMap<>());
-        boolean updated = repository.updateAccount(updatedAccount);
-
-        assertTrue(updated);
-        Optional<Account> found = repository.findById(1L);
-        assertTrue(found.isPresent());
-        assertEquals(1000.0, found.get().getBalance());
+        assertFalse(result.getResult());
+        assertEquals("Account already exists.", result.getMessage());
     }
 
     @Test
-    void findById_ShouldReturnEmpty_WhenAccountDoesNotExist() {
-        Optional<Account> found = repository.findById(999L);
-        assertTrue(found.isEmpty());
+    void updateAccount_ShouldSuccess_WhenAccountExists() {
+        repository.saveAccount(account);
+        account.setBalance(200.0);
+
+        AccountResult result = repository.updateAccount(account);
+
+        assertTrue(result.getResult());
+        assertEquals(200.0, repository.findById(1L).get().getBalance());
     }
 
     @Test
-    void findAllUserAccounts_ShouldReturnAllAccountsForUserId() {
-        Account account1 = new Account(1L, 100L, 500.0, new HashMap<>());
-        Account account2 = new Account(2L, 100L, 700.0, new HashMap<>());
-        Account account3 = new Account(3L, 101L, 300.0, new HashMap<>());
+    void deleteAccount_ShouldRemoveAccount_WhenAccountExists() {
+        repository.saveAccount(account);
+        AccountResult result = repository.deleteAccount(account);
 
-        repository.saveAccount(account1);
-        repository.saveAccount(account2);
-        repository.saveAccount(account3);
+        assertTrue(result.getResult());
+        assertFalse(repository.findById(1L).isPresent());
+    }
 
-        List<Account> user100Accounts = repository.findAllUserAccounts(100L);
-        assertEquals(2, user100Accounts.size());
-        for (Account acc : user100Accounts) {
-            assertEquals(100L, acc.getUserId());
-        }
+    @Test
+    void findAllUserAccounts_ShouldReturnUserAccounts() {
+        repository.saveAccount(new Account(1L, 1L, 100.0));
+        repository.saveAccount(new Account(2L, 1L, 200.0));
+        repository.saveAccount(new Account(3L, 2L, 300.0));
 
-        List<Account> user101Accounts = repository.findAllUserAccounts(101L);
-        assertEquals(1, user101Accounts.size());
-        assertEquals(101L, user101Accounts.getFirst().getUserId());
-
-        List<Account> user999Accounts = repository.findAllUserAccounts(999L);
-        assertTrue(user999Accounts.isEmpty());
+        assertEquals(2, repository.findAllUserAccounts(1L).size());
     }
 }

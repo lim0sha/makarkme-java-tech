@@ -1,88 +1,79 @@
-import entities.HairColor;
-import entities.User;
-import entities.Account;
+import entities.enums.HairColor;
 import interfaces.TransactionRepository;
 import interfaces.UserRepository;
 import interfaces.AccountRepository;
 import repositories.InMemoryTransactionRepository;
 import repositories.InMemoryUserRepository;
 import repositories.InMemoryAccountRepository;
-import services.FriendManagementServiceImpl;
-import services.PaymentServiceImpl;
-import services.RegistrationServiceImpl;
-import services.interfaces.FriendManagementService;
-import services.interfaces.PaymentService;
-import services.interfaces.RegistrationService;
+import services.*;
+import services.interfaces.*;
+import utilities.FriendshipUtilityImpl;
+import utilities.IdGenerationUtilityImpl;
+import utilities.interfaces.FriendshipUtility;
+import utilities.interfaces.IdGenerationUtility;
 
 import java.util.*;
 
-/**
- * Основной класс консольного приложения для управления пользователями, счетами и транзакциями.
- * Предоставляет меню для взаимодействия с пользователями, счетами и операциями:
- * создание пользователя, просмотр информации, управление друзьями, операции со счетами (создание, пополнение, снятие, перевод).
- */
-
 public class MainConsoleApp {
+    private final String ID_ERROR = "Ошибка: ID должен быть числом.";
+    private final String NUMBER_ERROR = "Ошибка: введены некорректные числа.";
 
-    private static final Scanner scanner = new Scanner(System.in);
+    private final Scanner scanner = new Scanner(System.in);
+    private final UserRepository userRepository = new InMemoryUserRepository();
+    private final AccountRepository accountRepository = new InMemoryAccountRepository();
+    private final TransactionRepository transactionRepository = new InMemoryTransactionRepository();
+    private final IdGenerationUtility idGenerationUtility = new IdGenerationUtilityImpl(userRepository, accountRepository, transactionRepository);
+    private final FriendshipUtility friendshipUtility = new FriendshipUtilityImpl(userRepository);
+    private final UserService userService = new UserServiceImpl(userRepository, idGenerationUtility);
+    private final AccountService accountService = new AccountServiceImpl(userRepository, accountRepository, idGenerationUtility);
+    private final TransactionService transactionService = new TransactionServiceImpl(accountRepository, transactionRepository, idGenerationUtility);
+    private final FriendManagementService friendManagementService = new FriendManagementServiceImpl(userRepository);
+    private final PaymentService paymentService = new PaymentServiceImpl(accountRepository, transactionRepository, idGenerationUtility, friendshipUtility, transactionService);
 
-    private static final UserRepository userRepository = new InMemoryUserRepository();
-    private static final AccountRepository accountRepository = new InMemoryAccountRepository();
-    private static final TransactionRepository transactionRepository = new InMemoryTransactionRepository();
-
-    private static final RegistrationService registrationService = new RegistrationServiceImpl(userRepository);
-    private static final FriendManagementService friendService = new FriendManagementServiceImpl(userRepository);
-    private static final PaymentService paymentService = new PaymentServiceImpl(userRepository, accountRepository, transactionRepository);
-
-    /**
-     * Точка входа в приложение.
-     * Запускает основной цикл с меню для выбора операций.
-     *
-     * @param args аргументы командной строки (не используются)
-     */
-
-    public static void main(String[] args) {
+    public void run() {
         boolean running = true;
-
         while (running) {
             printMenu();
-            int choice = Integer.parseInt(scanner.nextLine());
-
-            switch (choice) {
-                case 1 -> createUser();
-                case 2 -> printUserInfo();
-                case 3 -> addFriend();
-                case 4 -> removeFriend();
-                case 5 -> createAccount();
-                case 6 -> printAccountBalance();
-                case 7 -> withdrawFromAccount();
-                case 8 -> replenishAccount();
-                case 9 -> transferMoney();
-                case 0 -> running = false;
-                default -> System.out.println("Неверный выбор, попробуйте снова.");
+            try {
+                int choice = Integer.parseInt(scanner.nextLine());
+                switch (choice) {
+                    case 1 -> createUser();
+                    case 2 -> printUserInfo();
+                    case 3 -> addFriend();
+                    case 4 -> removeFriend();
+                    case 5 -> createAccount();
+                    case 6 -> printAccountBalance();
+                    case 7 -> withdrawFromAccount();
+                    case 8 -> replenishAccount();
+                    case 9 -> transferMoney();
+                    case 0 -> {
+                        running = false;
+                        System.out.println("Выход из программы.");
+                    }
+                    default -> System.out.println("Неверный выбор, попробуйте снова.");
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Ошибка: введите число от 0 до 9.");
             }
         }
     }
 
-    private static void printMenu() {
+    private void printMenu() {
         System.out.println("\nМеню:");
-        System.out.println("1 - Cоздание юзера");
-        System.out.println("2 - Вывод информации о юзере");
+        System.out.println("1 - Создание пользователя");
+        System.out.println("2 - Вывод информации о пользователе");
         System.out.println("3 - Добавить друга");
         System.out.println("4 - Удалить друга");
         System.out.println("5 - Создать счет");
-        System.out.println("6 - Просмотр баланса счёта");
+        System.out.println("6 - Просмотр баланса счета");
         System.out.println("7 - Снять со счета");
         System.out.println("8 - Пополнить счет");
-        System.out.println("9 - Перевод денег с одного счёта на другой");
+        System.out.println("9 - Перевод денег с одного счета на другой");
         System.out.println("0 - Выход");
         System.out.print("Выберите действие: ");
     }
 
-    /**
-     * Создаёт нового пользователя, запрашивая данные через консоль.
-     */
-    private static void createUser() {
+    private void createUser() {
         try {
             System.out.print("Введите логин: ");
             String login = scanner.nextLine();
@@ -99,40 +90,64 @@ public class MainConsoleApp {
             System.out.print("Введите цвет волос (RED, ORANGE, YELLOW, GREEN, BLUE, VIOLET, BLACK, BLONDE): ");
             HairColor hairColor = HairColor.valueOf(scanner.nextLine().toUpperCase());
 
-            User user = registrationService.createUser(login, name, age, gender, new ArrayList<>(), hairColor);
-            System.out.println("Пользователь создан с ID: " + user.getUserId());
+            userService.createUser(login, name, age, gender, hairColor);
+            System.out.println("Пользователь создан успешно.");
         } catch (IllegalArgumentException e) {
-            System.out.println("Ошибка: неверный формат ввода (например, цвет волос или число).");
+            System.out.println("Ошибка: неверный формат ввода. Проверьте цвет волос или возраст.");
         } catch (Exception e) {
             System.out.println("Ошибка при создании пользователя: " + e.getMessage());
         }
     }
 
-    /**
-     * Выводит информацию о пользователе по его ID.
-     */
-    private static void printUserInfo() {
+    private void printUserInfo() {
         try {
             System.out.print("Введите ID пользователя: ");
             long userId = Long.parseLong(scanner.nextLine());
 
-            var about = userRepository.aboutUser(userId);
-            if (about.isEmpty()) {
-                System.out.println("Пользователь не найден.");
-            } else {
-                about.forEach((k, v) -> System.out.println(k + ": " + v));
-            }
+            Map<String, Object> userData = userService.getUser(userId);
+            printUserDetails(userData);
+            printUserFriends(userData);
+
         } catch (NumberFormatException e) {
-            System.out.println("Ошибка: ID должен быть числом.");
+            System.out.println(ID_ERROR);
+        } catch (NoSuchElementException e) {
+            System.out.println("Пользователь не найден.");
         } catch (Exception e) {
-            System.out.println("Ошибка при выводе информации о пользователе: " + e.getMessage());
+            System.out.println("Ошибка при получении информации: " + e.getMessage());
         }
     }
 
-    /**
-     * Добавляет друга для пользователя по введённым ID.
-     */
-    private static void addFriend() {
+    private void printUserDetails(Map<String, Object> userData) {
+        System.out.println("\nИнформация о пользователе:");
+        System.out.println("ID: " + userData.get("userId"));
+        System.out.println("Логин: " + userData.get("login"));
+        System.out.println("Имя: " + userData.get("name"));
+        System.out.println("Возраст: " + userData.get("age"));
+        System.out.println("Пол: " + userData.get("gender"));
+        System.out.println("Цвет волос: " + userData.get("hairColor"));
+    }
+
+    private void printUserFriends(Map<String, Object> userData) {
+        @SuppressWarnings("unchecked")
+        List<Long> friends = (List<Long>) userData.get("friendsId");
+
+        System.out.println("\nДрузья:");
+        if (friends == null || friends.isEmpty()) {
+            System.out.println("  Нет друзей");
+            return;
+        }
+
+        friends.forEach(friendId -> {
+            try {
+                Map<String, Object> friendData = userService.getUser(friendId);
+                System.out.printf("  ID: %d, Имя: %s%n", friendId, friendData.get("name"));
+            } catch (Exception e) {
+                System.out.printf("  ID: %d, Имя: Неизвестный друг%n", friendId);
+            }
+        });
+    }
+
+    private void addFriend() {
         try {
             System.out.print("Введите ID пользователя: ");
             long userId = Long.parseLong(scanner.nextLine());
@@ -140,22 +155,17 @@ public class MainConsoleApp {
             System.out.print("Введите ID друга: ");
             long friendId = Long.parseLong(scanner.nextLine());
 
-            if (friendService.addFriend(userId, friendId)) {
-                System.out.println("Друг добавлен.");
-            } else {
-                System.out.println("Не удалось добавить друга.");
+            if (friendManagementService.addFriend(userId, friendId)) {
+                System.out.println("Друг успешно добавлен.");
             }
         } catch (NumberFormatException e) {
-            System.out.println("Ошибка: ID должен быть числом.");
+            System.out.println(ID_ERROR);
         } catch (Exception e) {
             System.out.println("Ошибка: " + e.getMessage());
         }
     }
 
-    /**
-     * Удаляет друга у пользователя по введённым ID.
-     */
-    private static void removeFriend() {
+    private void removeFriend() {
         try {
             System.out.print("Введите ID пользователя: ");
             long userId = Long.parseLong(scanner.nextLine());
@@ -163,106 +173,82 @@ public class MainConsoleApp {
             System.out.print("Введите ID друга: ");
             long friendId = Long.parseLong(scanner.nextLine());
 
-            if (friendService.removeFriend(userId, friendId)) {
-                System.out.println("Друг удалён.");
-            } else {
-                System.out.println("Не удалось удалить друга.");
+            if (friendManagementService.removeFriend(userId, friendId)) {
+                System.out.println("Друг успешно удалён.");
             }
         } catch (NumberFormatException e) {
-            System.out.println("Ошибка: ID должен быть числом.");
+            System.out.println(ID_ERROR);
         } catch (Exception e) {
             System.out.println("Ошибка: " + e.getMessage());
         }
     }
 
-    /**
-     * Создаёт новый счёт для пользователя по ID.
-     */
-    private static void createAccount() {
+    private void createAccount() {
         try {
-            System.out.print("Введите ID пользователя для создания счета: ");
+            System.out.print("Введите ID пользователя: ");
             long userId = Long.parseLong(scanner.nextLine());
 
-            Account account = paymentService.createAccount(userId);
-            System.out.println("Счёт создан с ID: " + account.getAccountId());
+            accountService.createAccount(userId);
+            System.out.println("Счёт успешно создан.");
         } catch (NumberFormatException e) {
-            System.out.println("Ошибка: ID должен быть числом.");
+            System.out.println(ID_ERROR);
         } catch (Exception e) {
-            System.out.println("Ошибка при создании счета: " + e.getMessage());
+            System.out.println("Ошибка при создании счёта: " + e.getMessage());
         }
     }
 
-    /**
-     * Выводит баланс счёта по его ID.
-     */
-    private static void printAccountBalance() {
+    private void printAccountBalance() {
         try {
-            System.out.print("Введите ID счета: ");
+            System.out.print("Введите ID счёта: ");
             long accountId = Long.parseLong(scanner.nextLine());
 
-            var accountOpt = accountRepository.findById(accountId);
-            if (accountOpt.isPresent()) {
-                System.out.println("Баланс: " + accountOpt.get().getBalance());
-            } else {
-                System.out.println("Счёт не найден.");
-            }
+            accountRepository.findById(accountId)
+                    .ifPresentOrElse(
+                            account -> System.out.printf("Баланс счёта: %.2f%n", account.getBalance()),
+                            () -> System.out.println("Счёт не найден.")
+                    );
         } catch (NumberFormatException e) {
-            System.out.println("Ошибка: ID должен быть числом.");
+            System.out.println(ID_ERROR);
         } catch (Exception e) {
-            System.out.println("Ошибка при выводе баланса: " + e.getMessage());
+            System.out.println("Ошибка при получении баланса: " + e.getMessage());
         }
     }
 
-    /**
-     * Выполняет снятие средств со счёта.
-     */
-    private static void withdrawFromAccount() {
+    private void withdrawFromAccount() {
         try {
-            System.out.print("Введите ID счета: ");
+            System.out.print("Введите ID счёта: ");
             long accountId = Long.parseLong(scanner.nextLine());
 
             System.out.print("Введите сумму для снятия: ");
             double amount = Double.parseDouble(scanner.nextLine());
 
-            if (paymentService.withdrawalAccount(accountId, amount)) {
-                System.out.println("Снятие прошло успешно.");
-            } else {
-                System.out.println("Недостаточно средств или ошибка.");
-            }
+            paymentService.withdrawAmount(accountId, amount);
+            System.out.println("Средства успешно сняты.");
         } catch (NumberFormatException e) {
-            System.out.println("Ошибка: введены некорректные числа.");
+            System.out.println(NUMBER_ERROR);
         } catch (Exception e) {
             System.out.println("Ошибка при снятии средств: " + e.getMessage());
         }
     }
 
-    /**
-     * Выполняет пополнение счёта.
-     */
-    private static void replenishAccount() {
+    private void replenishAccount() {
         try {
-            System.out.print("Введите ID счета: ");
+            System.out.print("Введите ID счёта: ");
             long accountId = Long.parseLong(scanner.nextLine());
 
             System.out.print("Введите сумму для пополнения: ");
             double amount = Double.parseDouble(scanner.nextLine());
 
-            if (paymentService.replenishmentAccount(accountId, amount)) {
-                System.out.println("Пополнение прошло успешно.");
-            } else {
-                System.out.println("Ошибка пополнения.");
-            }
+            paymentService.replenishAmount(accountId, amount);
+            System.out.println("Счёт успешно пополнен.");
         } catch (NumberFormatException e) {
-            System.out.println("Ошибка: введены некорректные числа.");
+            System.out.println(NUMBER_ERROR);
         } catch (Exception e) {
-            System.out.println("Ошибка при пополнении счета: " + e.getMessage());
+            System.out.println("Ошибка при пополнении счёта: " + e.getMessage());
         }
     }
 
-    /**
-     * Выполняет перевод денег с одного счёта на другой.
-     */
-    private static void transferMoney() {
+    private void transferMoney() {
         try {
             System.out.print("Введите ID счёта отправителя: ");
             long fromAccountId = Long.parseLong(scanner.nextLine());
@@ -273,15 +259,16 @@ public class MainConsoleApp {
             System.out.print("Введите сумму для перевода: ");
             double amount = Double.parseDouble(scanner.nextLine());
 
-            if (paymentService.transfer(fromAccountId, toAccountId, amount)) {
-                System.out.println("Перевод выполнен успешно.");
-            } else {
-                System.out.println("Ошибка перевода.");
-            }
+            paymentService.transfer(fromAccountId, toAccountId, amount);
+            System.out.println("Перевод выполнен успешно.");
         } catch (NumberFormatException e) {
-            System.out.println("Ошибка: введены некорректные числа.");
+            System.out.println(NUMBER_ERROR);
         } catch (Exception e) {
             System.out.println("Ошибка при переводе: " + e.getMessage());
         }
+    }
+
+    public static void main(String[] args) {
+        new MainConsoleApp().run();
     }
 }

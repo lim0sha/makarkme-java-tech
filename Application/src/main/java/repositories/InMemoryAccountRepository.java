@@ -1,80 +1,65 @@
 package repositories;
 
 import entities.Account;
+import entities.resultTypes.AccountResult;
 import interfaces.AccountRepository;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.Optional;
-
-/**
- * Репозиторий счетов в памяти.
- * Позволяет сохранять, обновлять, искать счета по ID.
- */
+import java.util.*;
+import java.util.stream.*;
 
 public class InMemoryAccountRepository implements AccountRepository {
     private final Map<Long, Account> accounts = new HashMap<>();
 
-    /**
-     * Сохраняет счёт.
-     * @param account объект счета
-     * @return true, если добавлен
-     */
     @Override
-    public boolean saveAccount(Account account) {
+    public AccountResult saveAccount(Account account) {
+        var accountResult = new AccountResult();
+
+        if (account == null) {
+            return accountResult.error("Unable to save account. The object is null.");
+        }
         if (accounts.containsKey(account.getAccountId())) {
-            return false;
+            return accountResult.error("Account already exists.");
         }
         accounts.put(account.getAccountId(), account);
-        return true;
+        return accountResult.ok("Successfully saved account with id:" + account.getAccountId());
     }
 
-    /**
-     * Обновляет счёт.
-     * @param account обновлённый объект счета
-     * @return true, если обновлён успешно
-     */
     @Override
-    public boolean updateAccount(Account account) {
+    public AccountResult updateAccount(Account account) {
+        var accountResult = new AccountResult();
+
+        if (account == null) {
+            return accountResult.error("Unable to update account. The object is null.");
+        }
+        if (!accounts.containsKey(account.getAccountId())) {
+            return accountResult.error("Account does not exist.");
+        }
         accounts.put(account.getAccountId(), account);
-        return true;
+        return accountResult.ok("Successfully update account with id:" + account.getAccountId());
     }
 
-    /**
-     * Находит счёт по ID.
-     * @param accountId ID счета
-     * @return Optional с объектом счета или пустой
-     */
     @Override
-    public Optional<Account> findById(long accountId) {
+    public AccountResult deleteAccount(Account account) {
+        var accountResult = new AccountResult();
+
+        if (account == null) {
+            return accountResult.error("Unable to update account. The object is null.");
+        }
+        if (!accounts.containsKey(account.getAccountId())) {
+            return accountResult.error("Account does not exist.");
+        }
+        accounts.remove(account.getAccountId());
+        return accountResult.ok("Successfully delete account with id:" + account.getAccountId());
+    }
+
+    @Override
+    public Optional<Account> findById(Long accountId) {
         return Optional.ofNullable(accounts.get(accountId));
     }
 
-    /**
-     * Возвращает список всех счетов пользователя по его ID.
-     *
-     * @param userId ID пользователя
-     * @return список счетов пользователя; пустой список, если счета не найдены
-     */
     @Override
-    public List<Account> findAllUserAccounts(long userId) {
-        List<Account> userAccounts = new ArrayList<>();
-        for (Account account : accounts.values()) {
-            if (account.getUserId() == userId) {
-                userAccounts.add(account);
-            }
-        }
-        return userAccounts;
+    public List<Account> findAllUserAccounts(Long userId) {
+        return accounts.values().stream().filter(account ->
+                Objects.equals(account.getUserId(), userId)).collect(Collectors.toList());
     }
-
-//    @Override
-//    public double getBalance(long accountId) {
-//        if (!accounts.containsKey(accountId)) {
-//            throw new IllegalArgumentException("Account with id '" + accountId + "' not found.");
-//        }
-//
-//        return accounts.get(accountId).getBalance();
-//    }
 }

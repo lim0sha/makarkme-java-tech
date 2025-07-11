@@ -1,14 +1,20 @@
 package interfaces;
 
 import entities.Account;
+import entities.resultTypes.AccountResult;
+
 import java.util.List;
 import java.util.Optional;
 
 public interface AccountRepository {
-    boolean saveAccount(Account account);
-    boolean updateAccount(Account account);
-    Optional<Account> findById(long accountId);
-    List<Account> findAllUserAccounts(long userId);
-//    double getBalance(long accountId);
+    AccountResult saveAccount(Account account);
+
+    AccountResult updateAccount(Account account);
+
+    AccountResult deleteAccount(Account account);
+
+    Optional<Account> findById(Long accountId);
+
+    List<Account> findAllUserAccounts(Long userId);
 
 }
