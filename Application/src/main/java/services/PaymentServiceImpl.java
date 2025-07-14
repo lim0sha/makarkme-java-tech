@@ -1,10 +1,8 @@
 package services;
 
 import interfaces.AccountRepository;
-import interfaces.TransactionRepository;
 import services.interfaces.TransactionService;
 import utilities.interfaces.FriendshipUtility;
-import utilities.interfaces.IdGenerationUtility;
 import services.interfaces.PaymentService;
 
 import static entities.enums.TypeTransaction.*;
@@ -14,7 +12,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final FriendshipUtility friendshipUtility;
     private final TransactionService transactionService;
 
-    public PaymentServiceImpl(AccountRepository accountRepository, TransactionRepository transactionRepository, IdGenerationUtility idGenerationUtility, FriendshipUtility friendshipUtility, TransactionService transactionService) {
+    public PaymentServiceImpl(AccountRepository accountRepository, FriendshipUtility friendshipUtility, TransactionService transactionService) {
         this.accountRepository = accountRepository;
         this.friendshipUtility = friendshipUtility;
         this.transactionService = transactionService;
@@ -89,7 +87,7 @@ public class PaymentServiceImpl implements PaymentService {
         }
 
         double newBalanceFromAccount = fromAccount.getBalance() - totalAmount;
-        double newBalanceToAccount = toAccount.getBalance() + totalAmount;
+        double newBalanceToAccount = toAccount.getBalance() + amount;
         fromAccount.setBalance(newBalanceFromAccount);
         toAccount.setBalance(newBalanceToAccount);
 
