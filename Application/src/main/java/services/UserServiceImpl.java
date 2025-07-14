@@ -4,7 +4,6 @@ import entities.enums.HairColor;
 import entities.User;
 import interfaces.UserRepository;
 import services.interfaces.UserService;
-import utilities.interfaces.IdGenerationUtility;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -12,18 +11,14 @@ import java.util.Map;
 
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
-    private final IdGenerationUtility idGenerationUtility;
 
-    public UserServiceImpl(UserRepository userRepository, IdGenerationUtility idGenerationUtility) {
+    public UserServiceImpl(UserRepository userRepository) {
         this.userRepository = userRepository;
-        this.idGenerationUtility = idGenerationUtility;
     }
 
     @Override
     public void createUser(String login, String name, Integer age, String gender, HairColor hairColor) {
-        long userId = idGenerationUtility.generateUniqueUserId();
-
-        var user = new User(userId, login, name, age, gender, new ArrayList<Long>(), hairColor);
+        var user = new User(null, login, name, age, gender, new ArrayList<>(), hairColor);
         var result = userRepository.saveUser(user);
         if (!result.getResult()) {
             throw new IllegalArgumentException("Failed to save user: " + result.getMessage());

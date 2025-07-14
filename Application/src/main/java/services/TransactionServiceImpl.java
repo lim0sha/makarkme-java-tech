@@ -5,7 +5,6 @@ import entities.enums.TypeTransaction;
 import interfaces.AccountRepository;
 import interfaces.TransactionRepository;
 import services.interfaces.TransactionService;
-import utilities.interfaces.IdGenerationUtility;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,16 +12,13 @@ import java.util.Map;
 public class TransactionServiceImpl implements TransactionService {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
-    private final IdGenerationUtility idGenerationUtility;
 
-    public TransactionServiceImpl(AccountRepository accountRepository, TransactionRepository transactionRepository, IdGenerationUtility idGenerationUtility) {
+    public TransactionServiceImpl(AccountRepository accountRepository, TransactionRepository transactionRepository) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
-        this.idGenerationUtility = idGenerationUtility;
     }
 
     public void createTransaction(Long fromAccountId, Long toAccountId, Double amount, TypeTransaction typeTransaction) {
-        long transactionId = idGenerationUtility.generateUniqueTransactionId();
 
         if (accountRepository.findById(fromAccountId).isEmpty()) {
             throw new IllegalArgumentException("Account with id '" + fromAccountId + "' not found.");
@@ -32,7 +28,7 @@ public class TransactionServiceImpl implements TransactionService {
         }
 
 
-        var transaction = new Transaction(transactionId, fromAccountId, toAccountId, amount, typeTransaction);
+        var transaction = new Transaction(null, fromAccountId, toAccountId, amount, typeTransaction);
         var result = transactionRepository.saveTransaction(transaction);
         if (!result.getResult()) {
             throw new IllegalArgumentException("Failed to save transaction: " + result.getMessage());
