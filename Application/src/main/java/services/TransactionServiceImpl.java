@@ -1,5 +1,6 @@
 package services;
 
+import entities.Account;
 import entities.Transaction;
 import entities.enums.TypeTransaction;
 import interfaces.AccountRepository;
@@ -28,7 +29,14 @@ public class TransactionServiceImpl implements TransactionService {
         }
 
 
-        var transaction = new Transaction(null, fromAccountId, toAccountId, amount, typeTransaction);
+        var transaction = Transaction.builder()
+                .transactionId(null)
+                .fromAccountId(fromAccountId)
+                .toAccountId(toAccountId)
+                .amount(amount)
+                .typeTransaction(typeTransaction)
+                .build();
+
         var result = transactionRepository.saveTransaction(transaction);
         if (!result.getResult()) {
             throw new IllegalArgumentException("Failed to save transaction: " + result.getMessage());

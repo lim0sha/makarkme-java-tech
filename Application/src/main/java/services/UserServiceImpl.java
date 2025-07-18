@@ -18,7 +18,16 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void createUser(String login, String name, Integer age, String gender, HairColor hairColor) {
-        var user = new User(null, login, name, age, gender, new ArrayList<>(), hairColor);
+        var user = User.builder().
+                userId(null)
+                .login(login)
+                .name(name)
+                .age(age)
+                .gender(gender)
+                .friendsId(new ArrayList<>())
+                .hairColor(hairColor)
+                .build();
+
         var result = userRepository.saveUser(user);
         if (!result.getResult()) {
             throw new IllegalArgumentException("Failed to save user: " + result.getMessage());

@@ -23,7 +23,12 @@ public class AccountServiceImpl implements AccountService {
             throw new IllegalArgumentException("User with id '" + userId + "' not found.");
         }
 
-        var account = new Account(null, userId, 0.0);
+        var account = Account.builder()
+                .accountId(null)
+                .userId(userId)
+                .balance(0.0)
+                .build();
+
         var result = accountRepository.saveAccount(account);
         if (!result.getResult()) {
             throw new IllegalArgumentException("Failed to save account: " + result.getMessage());
