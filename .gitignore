@@ -1,4 +1,5 @@
 .idea
+.env
 /Application/target
 /Presentation/target
 /Domain/target
