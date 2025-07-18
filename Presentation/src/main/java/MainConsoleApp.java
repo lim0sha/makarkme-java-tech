@@ -4,8 +4,12 @@ import repositories.UserRepository;
 import repositories.AccountRepository;
 import services.*;
 import services.interfaces.*;
+import utilities.DatabaseMigrationUtilityImpl;
 import utilities.FriendshipUtilityImpl;
+import utilities.SessionFactoryUtilityImpl;
+import utilities.interfaces.DatabaseMigrationUtility;
 import utilities.interfaces.FriendshipUtility;
+import utilities.interfaces.SessionFactoryUtility;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -15,10 +19,16 @@ public class MainConsoleApp {
     private final String NUMBER_ERROR = "Ошибка: введены некорректные числа.";
 
     private final Scanner scanner = new Scanner(System.in);
-    private final interfaces.UserRepository userRepository = new UserRepository();
-    private final interfaces.AccountRepository accountRepository = new AccountRepository();
-    private final interfaces.TransactionRepository transactionRepository = new TransactionRepository();
+
+    private final SessionFactoryUtility sessionFactoryUtility = new SessionFactoryUtilityImpl();
+    private final DatabaseMigrationUtility databaseMigrationUtility = new DatabaseMigrationUtilityImpl();
+
+    private final interfaces.UserRepository userRepository = new UserRepository(sessionFactoryUtility);
+    private final interfaces.AccountRepository accountRepository = new AccountRepository(sessionFactoryUtility);
+    private final interfaces.TransactionRepository transactionRepository = new TransactionRepository(sessionFactoryUtility);
+
     private final FriendshipUtility friendshipUtility = new FriendshipUtilityImpl(userRepository);
+
     private final UserService userService = new UserServiceImpl(userRepository);
     private final AccountService accountService = new AccountServiceImpl(userRepository, accountRepository);
     private final TransactionService transactionService = new TransactionServiceImpl(accountRepository, transactionRepository);
@@ -26,6 +36,8 @@ public class MainConsoleApp {
     private final PaymentService paymentService = new PaymentServiceImpl(accountRepository, friendshipUtility, transactionService);
 
     public void run() {
+        databaseMigrationUtility.migrate();
+
         boolean running = true;
         while (running) {
             printMenu();
