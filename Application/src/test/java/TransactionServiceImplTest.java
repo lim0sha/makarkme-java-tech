@@ -10,7 +10,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import services.TransactionServiceImpl;
-import utilities.interfaces.IdGenerationUtility;
 
 import java.util.Map;
 import java.util.Optional;
@@ -24,8 +23,6 @@ class TransactionServiceImplTest {
     private AccountRepository accountRepository;
     @Mock
     private TransactionRepository transactionRepository;
-    @Mock
-    private IdGenerationUtility idGenerationUtility;
 
     @InjectMocks
     private TransactionServiceImpl transactionService;
@@ -50,7 +47,6 @@ class TransactionServiceImplTest {
         // Настройка моков
         when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
         when(accountRepository.findById(toAccountId)).thenReturn(Optional.of(toAccount));
-        when(idGenerationUtility.generateUniqueTransactionId()).thenReturn(transactionId);
         when(transactionRepository.saveTransaction(any(Transaction.class))).thenReturn(new TransactionResult(true, "Transaction saved"));
 
         // Выполнение и проверка
