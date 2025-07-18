@@ -5,6 +5,8 @@ import services.interfaces.TransactionService;
 import utilities.interfaces.FriendshipUtility;
 import services.interfaces.PaymentService;
 
+import java.util.Objects;
+
 import static entities.enums.TypeTransaction.*;
 
 public class PaymentServiceImpl implements PaymentService {
@@ -48,7 +50,7 @@ public class PaymentServiceImpl implements PaymentService {
             throw new IllegalArgumentException("Insufficient funds.");
         }
         transactionService.createTransaction(accountId, accountId, amount, WITHDRAWAL);
-        double newBalance = account.getBalance() - amount;
+        Double newBalance = account.getBalance() - amount;
         account.setBalance(newBalance);
 
         var accountResult = accountRepository.updateAccount(account);
@@ -68,26 +70,26 @@ public class PaymentServiceImpl implements PaymentService {
             throw new IllegalArgumentException("Amount must be greater than zero.");
         }
 
-        long fromUserId = fromAccount.getUserId();
-        long toUserId = toAccount.getUserId();
+        Long fromUserId = fromAccount.getUserId();
+        Long toUserId = toAccount.getUserId();
 
-        double commission;
-        if (fromUserId == toUserId) {
-            commission = 0;
+        Double commission;
+        if (Objects.equals(fromUserId, toUserId)) {
+            commission = 0.0;
         } else if (friendshipUtility.isFriend(fromUserId, toUserId)) {
             commission = amount * 0.03;
         } else {
             commission = amount * 0.10;
         }
 
-        double totalAmount = amount + commission;
+        Double totalAmount = amount + commission;
 
         if (fromAccount.getBalance() < totalAmount) {
             throw new IllegalArgumentException("Insufficient funds.");
         }
 
-        double newBalanceFromAccount = fromAccount.getBalance() - totalAmount;
-        double newBalanceToAccount = toAccount.getBalance() + amount;
+        Double newBalanceFromAccount = fromAccount.getBalance() - totalAmount;
+        Double newBalanceToAccount = toAccount.getBalance() + amount;
         fromAccount.setBalance(newBalanceFromAccount);
         toAccount.setBalance(newBalanceToAccount);
 
