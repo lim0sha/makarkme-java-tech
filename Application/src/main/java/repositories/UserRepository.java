@@ -3,22 +3,17 @@ package repositories;
 import entities.resultTypes.UserResult;
 import entities.User;
 import org.hibernate.Session;
-import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
-import org.hibernate.cfg.Configuration;
+import utilities.interfaces.SessionFactoryUtility;
 
 import java.util.Optional;
 
 
 public class UserRepository implements interfaces.UserRepository {
-    private final SessionFactory sessionFactory;
+    private final SessionFactoryUtility sessionFactoryUtility;
 
-    public UserRepository() {
-        try {
-            sessionFactory = new Configuration().configure().addAnnotatedClass(User.class).buildSessionFactory();
-        } catch (Exception ex) {
-            throw new RuntimeException("Failed to initialize Hibernate SessionFactory", ex);
-        }
+    public UserRepository(SessionFactoryUtility sessionFactoryUtility) {
+        this.sessionFactoryUtility = sessionFactoryUtility;
     }
 
     @Override
@@ -29,21 +24,28 @@ public class UserRepository implements interfaces.UserRepository {
             return userResult.error("Unable to save user. The object is null.");
         }
 
-        try (Session session = sessionFactory.openSession()) {
-            Transaction hibernateTransaction = session.beginTransaction();
+        Session session = null;
+        Transaction transaction = null;
 
-            try {
-                if (user.getUserId() != null && session.get(User.class, user.getUserId()) != null) {
-                    return userResult.error("User already exists.");
-                }
-                session.persist(user);
-                hibernateTransaction.commit();
-                return userResult.ok("Successfully saved user with id: " + user.getUserId());
-            } catch (Exception ex) {
-                if (hibernateTransaction != null) {
-                    hibernateTransaction.rollback();
-                }
-                return userResult.error("Failed to save user: " + ex.getMessage());
+        try {
+            session = sessionFactoryUtility.getSessionFactory().openSession();
+            transaction = session.beginTransaction();
+
+            if (user.getUserId() != null && session.get(User.class, user.getUserId()) != null) {
+                return userResult.error("User already exists.");
+            }
+
+            session.persist(user);
+            transaction.commit();
+            return userResult.ok("Successfully saved user with id: " + user.getUserId());
+        } catch (Exception ex) {
+            if (transaction != null) {
+                transaction.rollback();
+            }
+            return userResult.error("Failed to save user: " + ex.getMessage());
+        } finally {
+            if (session != null) {
+                session.close();
             }
         }
     }
@@ -53,24 +55,31 @@ public class UserRepository implements interfaces.UserRepository {
         var userResult = new UserResult();
 
         if (user == null) {
-            return userResult.error("Unable to save user. The object is null.");
+            return userResult.error("Unable to update user. The object is null.");
         }
 
-        try (Session session = sessionFactory.openSession()) {
-            Transaction hibernateTransaction = session.beginTransaction();
+        Session session = null;
+        Transaction transaction = null;
 
-            try {
-                if (user.getUserId() == null || session.get(User.class, user.getUserId()) == null) {
-                    return userResult.error("User does not exist.");
-                }
-                session.merge(user);
-                hibernateTransaction.commit();
-                return userResult.ok("Successfully update user with id: " + user.getUserId());
-            } catch (Exception ex) {
-                if (hibernateTransaction != null) {
-                    hibernateTransaction.rollback();
-                }
-                return userResult.error("Failed to update user: " + ex.getMessage());
+        try {
+            session = sessionFactoryUtility.getSessionFactory().openSession();
+            transaction = session.beginTransaction();
+
+            if (user.getUserId() == null || session.get(User.class, user.getUserId()) == null) {
+                return userResult.error("User does not exist.");
+            }
+
+            session.merge(user);
+            transaction.commit();
+            return userResult.ok("Successfully updated user with id: " + user.getUserId());
+        } catch (Exception ex) {
+            if (transaction != null) {
+                transaction.rollback();
+            }
+            return userResult.error("Failed to update user: " + ex.getMessage());
+        } finally {
+            if (session != null) {
+                session.close();
             }
         }
     }
@@ -80,33 +89,47 @@ public class UserRepository implements interfaces.UserRepository {
         var userResult = new UserResult();
 
         if (user == null) {
-            return userResult.error("Unable to save user. The object is null.");
+            return userResult.error("Unable to delete user. The object is null.");
         }
 
-        try (Session session = sessionFactory.openSession()) {
-            Transaction hibernateTransaction = session.beginTransaction();
+        Session session = null;
+        Transaction transaction = null;
 
-            try {
-                if (user.getUserId() == null || session.get(User.class, user.getUserId()) == null) {
-                    return userResult.error("User does not exist.");
-                }
-                session.remove(user);
-                hibernateTransaction.commit();
-                return userResult.ok("Successfully delete user with id: " + user.getUserId());
-            } catch (Exception ex) {
-                if (hibernateTransaction != null) {
-                    hibernateTransaction.rollback();
-                }
-                return userResult.error("Failed to delete user: " + ex.getMessage());
+        try {
+            session = sessionFactoryUtility.getSessionFactory().openSession();
+            transaction = session.beginTransaction();
+
+            if (user.getUserId() == null || session.get(User.class, user.getUserId()) == null) {
+                return userResult.error("User does not exist.");
+            }
+
+            session.remove(user);
+            transaction.commit();
+            return userResult.ok("Successfully deleted user with id: " + user.getUserId());
+        } catch (Exception ex) {
+            if (transaction != null) {
+                transaction.rollback();
+            }
+            return userResult.error("Failed to delete user: " + ex.getMessage());
+        } finally {
+            if (session != null) {
+                session.close();
             }
         }
     }
 
     @Override
     public Optional<User> findById(Long userId) {
-        try (Session session = sessionFactory.openSession()) {
+        Session session = null;
+
+        try {
+            session = sessionFactoryUtility.getSessionFactory().openSession();
             User user = session.get(User.class, userId);
             return Optional.ofNullable(user);
+        } finally {
+            if (session != null) {
+                session.close();
+            }
         }
     }
 }
