@@ -1,36 +1,43 @@
 import entities.enums.HairColor;
-import interfaces.TransactionRepository;
-import interfaces.UserRepository;
-import interfaces.AccountRepository;
-import repositories.InMemoryTransactionRepository;
-import repositories.InMemoryUserRepository;
-import repositories.InMemoryAccountRepository;
+import repositories.TransactionRepository;
+import repositories.UserRepository;
+import repositories.AccountRepository;
 import services.*;
 import services.interfaces.*;
+import utilities.DatabaseMigrationUtilityImpl;
 import utilities.FriendshipUtilityImpl;
-import utilities.IdGenerationUtilityImpl;
+import utilities.SessionFactoryUtilityImpl;
+import utilities.interfaces.DatabaseMigrationUtility;
 import utilities.interfaces.FriendshipUtility;
-import utilities.interfaces.IdGenerationUtility;
+import utilities.interfaces.SessionFactoryUtility;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class MainConsoleApp {
     private final String ID_ERROR = "Ошибка: ID должен быть числом.";
     private final String NUMBER_ERROR = "Ошибка: введены некорректные числа.";
 
     private final Scanner scanner = new Scanner(System.in);
-    private final UserRepository userRepository = new InMemoryUserRepository();
-    private final AccountRepository accountRepository = new InMemoryAccountRepository();
-    private final TransactionRepository transactionRepository = new InMemoryTransactionRepository();
-    private final IdGenerationUtility idGenerationUtility = new IdGenerationUtilityImpl(userRepository, accountRepository, transactionRepository);
+
+    private final SessionFactoryUtility sessionFactoryUtility = new SessionFactoryUtilityImpl();
+    private final DatabaseMigrationUtility databaseMigrationUtility = new DatabaseMigrationUtilityImpl();
+
+    private final interfaces.UserRepository userRepository = new UserRepository(sessionFactoryUtility);
+    private final interfaces.AccountRepository accountRepository = new AccountRepository(sessionFactoryUtility);
+    private final interfaces.TransactionRepository transactionRepository = new TransactionRepository(sessionFactoryUtility);
+
     private final FriendshipUtility friendshipUtility = new FriendshipUtilityImpl(userRepository);
-    private final UserService userService = new UserServiceImpl(userRepository, idGenerationUtility);
-    private final AccountService accountService = new AccountServiceImpl(userRepository, accountRepository, idGenerationUtility);
-    private final TransactionService transactionService = new TransactionServiceImpl(accountRepository, transactionRepository, idGenerationUtility);
+
+    private final UserService userService = new UserServiceImpl(userRepository);
+    private final AccountService accountService = new AccountServiceImpl(userRepository, accountRepository);
+    private final TransactionService transactionService = new TransactionServiceImpl(accountRepository, transactionRepository);
     private final FriendManagementService friendManagementService = new FriendManagementServiceImpl(userRepository);
-    private final PaymentService paymentService = new PaymentServiceImpl(accountRepository, transactionRepository, idGenerationUtility, friendshipUtility, transactionService);
+    private final PaymentService paymentService = new PaymentServiceImpl(accountRepository, friendshipUtility, transactionService);
 
     public void run() {
+        databaseMigrationUtility.migrate();
+
         boolean running = true;
         while (running) {
             printMenu();
@@ -76,26 +83,37 @@ public class MainConsoleApp {
     private void createUser() {
         try {
             System.out.print("Введите логин: ");
-            String login = scanner.nextLine();
+            String login = scanner.nextLine().trim();
 
             System.out.print("Введите имя: ");
-            String name = scanner.nextLine();
+            String name = scanner.nextLine().trim();
 
             System.out.print("Введите возраст: ");
-            int age = Integer.parseInt(scanner.nextLine());
+            int age = Integer.parseInt(scanner.nextLine().trim());
 
             System.out.print("Введите пол: ");
-            String gender = scanner.nextLine();
+            String gender = scanner.nextLine().trim();
 
             System.out.print("Введите цвет волос (RED, ORANGE, YELLOW, GREEN, BLUE, VIOLET, BLACK, BLONDE): ");
-            HairColor hairColor = HairColor.valueOf(scanner.nextLine().toUpperCase());
+            String colorInput = scanner.nextLine().trim();
+
+            HairColor hairColor;
+            try {
+                hairColor = HairColor.valueOf(colorInput.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                System.out.println("Ошибка: допустимые значения: " + Arrays.stream(HairColor.values()).map(Enum::name).collect(Collectors.joining(", ")));
+                return;
+            }
 
             userService.createUser(login, name, age, gender, hairColor);
             System.out.println("Пользователь создан успешно.");
+
+        } catch (NumberFormatException e) {
+            System.out.println("Ошибка: возраст должен быть числом");
         } catch (IllegalArgumentException e) {
-            System.out.println("Ошибка: неверный формат ввода. Проверьте цвет волос или возраст.");
+            System.out.println("Ошибка: " + e.getMessage());
         } catch (Exception e) {
-            System.out.println("Ошибка при создании пользователя: " + e.getMessage());
+            System.out.println("Неожиданная ошибка: " + e.getMessage());
         }
     }
 

@@ -10,7 +10,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import services.AccountServiceImpl;
-import utilities.interfaces.IdGenerationUtility;
 
 import java.util.ArrayList;
 import java.util.Optional;
@@ -24,8 +23,6 @@ class AccountServiceImplTest {
     private UserRepository userRepository;
     @Mock
     private AccountRepository accountRepository;
-    @Mock
-    private IdGenerationUtility idGenerationUtility;
 
     @InjectMocks
     private AccountServiceImpl accountService;
@@ -52,7 +49,6 @@ class AccountServiceImplTest {
         );
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(existingUser));
-        when(idGenerationUtility.generateUniqueAccountId()).thenReturn(accountId);
         when(accountRepository.saveAccount(any(Account.class))).thenReturn(new AccountResult(true));
 
         assertDoesNotThrow(() -> accountService.createAccount(userId));

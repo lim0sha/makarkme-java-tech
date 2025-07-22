@@ -8,7 +8,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import services.UserServiceImpl;
-import utilities.interfaces.IdGenerationUtility;
 
 import java.util.List;
 import java.util.Map;
@@ -21,8 +20,6 @@ class UserServiceImplTest {
 
     @Mock
     private UserRepository userRepository;
-    @Mock
-    private IdGenerationUtility idGenerationUtility;
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -36,7 +33,6 @@ class UserServiceImplTest {
     void createUser_ShouldSuccess_WhenDataValid() {
         Long userId = 1L;
 
-        when(idGenerationUtility.generateUniqueUserId()).thenReturn(userId);
         when(userRepository.saveUser(any(User.class))).thenReturn(new UserResult(true));
 
         assertDoesNotThrow(() -> userService.createUser("login", "name", 25, "M", HairColor.BLACK));

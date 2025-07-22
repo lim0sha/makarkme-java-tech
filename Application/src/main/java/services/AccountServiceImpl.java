@@ -4,7 +4,6 @@ import entities.Account;
 import interfaces.AccountRepository;
 import interfaces.UserRepository;
 import services.interfaces.AccountService;
-import utilities.interfaces.IdGenerationUtility;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -12,23 +11,24 @@ import java.util.Map;
 public class AccountServiceImpl implements AccountService {
     private final UserRepository userRepository;
     private final AccountRepository accountRepository;
-    private final IdGenerationUtility idGenerationUtility;
 
-    public AccountServiceImpl(UserRepository userRepository, AccountRepository accountRepository, IdGenerationUtility idGenerationUtility) {
+    public AccountServiceImpl(UserRepository userRepository, AccountRepository accountRepository) {
         this.userRepository = userRepository;
         this.accountRepository = accountRepository;
-        this.idGenerationUtility = idGenerationUtility;
     }
 
     @Override
     public void createAccount(Long userId) {
-        long accountId = idGenerationUtility.generateUniqueAccountId();
-
         if (userRepository.findById(userId).isEmpty()) {
             throw new IllegalArgumentException("User with id '" + userId + "' not found.");
         }
 
-        var account = new Account(accountId, userId, 0.0);
+        var account = Account.builder()
+                .accountId(null)
+                .userId(userId)
+                .balance(0.0)
+                .build();
+
         var result = accountRepository.saveAccount(account);
         if (!result.getResult()) {
             throw new IllegalArgumentException("Failed to save account: " + result.getMessage());
