@@ -10,7 +10,10 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "transactions")
+@Table(name = "transactions", indexes = {
+        @Index(name = "idx_from_account_id", columnList = "from_account_id"),
+        @Index(name = "idx_to_account_id", columnList = "to_account_id")
+})
 public class Transaction {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
