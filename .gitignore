@@ -1,5 +1,7 @@
 .idea
-.env
+/Application/src/main/resources/application.yaml
+/Application/Application.iml
+
 /Application/target
 /Presentation/target
 /Domain/target

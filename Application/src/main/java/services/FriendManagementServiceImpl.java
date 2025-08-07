@@ -1,23 +1,28 @@
 package services;
 
-import entities.User;
 import interfaces.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import services.interfaces.FriendManagementService;
 
 import java.util.List;
 
+@Service
 public class FriendManagementServiceImpl implements FriendManagementService {
     private final UserRepository userRepository;
 
+    @Autowired
     public FriendManagementServiceImpl(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
     @Override
-    public boolean addFriend(Long userId, Long friendId) {
-        User user = userRepository.findById(userId).orElseThrow(() ->
+    @Transactional
+    public void create(Long userId, Long friendId) {
+        var user = userRepository.findById(userId).orElseThrow(() ->
                 new IllegalArgumentException("User with id '" + userId + "' not found."));
-        User friend = userRepository.findById(friendId).orElseThrow(() ->
+        var friend = userRepository.findById(friendId).orElseThrow(() ->
                 new IllegalArgumentException("User with id '" + friendId + "' not found."));
 
         List<Long> userFriendsId = user.getFriendsId();
@@ -34,22 +39,25 @@ public class FriendManagementServiceImpl implements FriendManagementService {
         friendFriendsId.add(userId);
         friend.setFriendsId(friendFriendsId);
 
-        var userResult = userRepository.updateUser(user);
-        if (!userResult.getResult()) {
-            throw new IllegalArgumentException("Failed to update user: " + userResult.getMessage());
-        }
-        var friendResult = userRepository.updateUser(friend);
-        if (!friendResult.getResult()) {
-            throw new IllegalArgumentException("Failed to update user's friend: " + friendResult.getMessage());
+        try {
+            userRepository.save(user);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to update user: " + ex.getMessage());
         }
 
-        return userResult.getResult() && friendResult.getResult();
+        try {
+            userRepository.save(friend);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to update user's friend: " + ex.getMessage());
+        }
     }
 
     @Override
-    public boolean removeFriend(Long userId, Long friendId) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User with id '" + userId + "' not found."));
-        User friend = userRepository.findById(friendId).orElseThrow(() -> new IllegalArgumentException("User with id '" + friendId + "' not found."));
+    public void delete(Long userId, Long friendId) {
+        var user = userRepository.findById(userId).orElseThrow(() ->
+                new IllegalArgumentException("User with id '" + userId + "' not found."));
+        var friend = userRepository.findById(friendId).orElseThrow(() ->
+                new IllegalArgumentException("User with id '" + friendId + "' not found."));
 
         List<Long> userFriendsId = user.getFriendsId();
         if (!userFriendsId.contains(friendId)) {
@@ -65,15 +73,15 @@ public class FriendManagementServiceImpl implements FriendManagementService {
         friendFriendsId.remove(userId);
         friend.setFriendsId(friendFriendsId);
 
-        var userResult = userRepository.updateUser(user);
-        if (!userResult.getResult()) {
-            throw new IllegalArgumentException("Failed to update user: " + userResult.getMessage());
+        try {
+            userRepository.save(user);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to update user: " + ex.getMessage());
         }
-        var friendResult = userRepository.updateUser(friend);
-        if (!friendResult.getResult()) {
-            throw new IllegalArgumentException("Failed to update user's friend: " + friendResult.getMessage());
+        try {
+            userRepository.save(friend);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to update user's friend: " + ex.getMessage());
         }
-
-        return userResult.getResult() && friendResult.getResult();
     }
 }

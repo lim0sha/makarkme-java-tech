@@ -1,7 +1,7 @@
 package services.interfaces;
 
 public interface FriendManagementService {
-    boolean addFriend(Long userId, Long friendId);
+    void create(Long userId, Long friendId);
 
-    boolean removeFriend(Long userId, Long friendId);
+    void delete(Long userId, Long friendId);
 }

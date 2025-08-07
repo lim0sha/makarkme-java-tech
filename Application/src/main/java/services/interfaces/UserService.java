@@ -1,17 +1,18 @@
 package services.interfaces;
 
+import entities.DTO.UserDTO;
 import entities.enums.HairColor;
-
-import java.util.Map;
-
+import java.util.List;
 
 public interface UserService {
-    void createUser(String login, String name, Integer age, String gender, HairColor hairColor);
+    void create(String login, String name, Integer age, String gender, HairColor hairColor);
 
-    void updateUser(Long userId, String login, String name, Integer age, String gender, HairColor hairColor);
+    UserDTO read(Long userId);
 
-    void deleteUser(Long userId);
+    void update(Long userId, String login, String name, Integer age, String gender, HairColor hairColor);
 
-    Map<String, Object> getUser(Long userId);
+    void delete(Long userId);
 
-}
+    List<UserDTO> getAllUsersFiltered(HairColor hairColor, String gender);
+
+    List<UserDTO> getUserFriends(Long userId);}

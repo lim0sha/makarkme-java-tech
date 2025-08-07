@@ -1,25 +1,31 @@
 package services;
 
 import entities.Account;
+import entities.DTO.AccountDTO;
 import interfaces.AccountRepository;
 import interfaces.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import services.interfaces.AccountService;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
+@Service
 public class AccountServiceImpl implements AccountService {
     private final UserRepository userRepository;
     private final AccountRepository accountRepository;
 
+    @Autowired
     public AccountServiceImpl(UserRepository userRepository, AccountRepository accountRepository) {
         this.userRepository = userRepository;
         this.accountRepository = accountRepository;
     }
 
     @Override
-    public void createAccount(Long userId) {
-        if (userRepository.findById(userId).isEmpty()) {
+    @Transactional
+    public void create(Long userId) {
+        if (!userRepository.existsById(userId)) {
             throw new IllegalArgumentException("User with id '" + userId + "' not found.");
         }
 
@@ -29,51 +35,77 @@ public class AccountServiceImpl implements AccountService {
                 .balance(0.0)
                 .build();
 
-        var result = accountRepository.saveAccount(account);
-        if (!result.getResult()) {
-            throw new IllegalArgumentException("Failed to save account: " + result.getMessage());
+        try {
+            accountRepository.save(account);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to save account: " + ex.getMessage());
         }
     }
 
     @Override
-    public void updateAccount(Long accountId, Long userId) {
+    @Transactional(readOnly = true)
+    public AccountDTO read(Long accountId) {
         var account = accountRepository.findById(accountId).orElseThrow(() ->
                 new IllegalArgumentException("Account with id '" + accountId + "' not found."));
+
+        return new AccountDTO(account.getAccountId(), account.getUserId(), account.getBalance());
+
+    }
+
+    @Override
+    @Transactional
+    public void update(Long accountId, Long userId) {
+        var account = accountRepository.findById(accountId).orElseThrow(() ->
+                new IllegalArgumentException("Account with id '" + accountId + "' not found."));
+
+        if (!userRepository.existsById(userId)) {
+            throw new IllegalArgumentException("User with id '" + userId + "' not found.");
+        }
 
         account.setUserId(userId);
 
-        var result = accountRepository.updateAccount(account);
-        if (!result.getResult()) {
-            throw new IllegalArgumentException("Failed to update account: " + result.getMessage());
+        try {
+            accountRepository.save(account);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to update account: " + ex.getMessage());
         }
     }
 
     @Override
-    public void deleteAccount(Long accountId) {
-        var account = accountRepository.findById(accountId).orElseThrow(() ->
-                new IllegalArgumentException("Account with id '" + accountId + "' not found."));
+    @Transactional
+    public void delete(Long accountId) {
+        if (!accountRepository.existsById(accountId)) {
+            throw new IllegalArgumentException("Account with id '" + accountId + "' not found.");
+        }
 
-        var result = accountRepository.deleteAccount(account);
-        if (!result.getResult()) {
-            throw new IllegalArgumentException("Failed to delete account: " + result.getMessage());
+        try {
+            accountRepository.deleteById(accountId);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to delete account: " + ex.getMessage());
         }
     }
 
     @Override
-    public Map<String, Object> getAccount(Long accountId) {
+    @Transactional(readOnly = true)
+    public Double getBalanceByAccountId(Long accountId) {
         var account = accountRepository.findById(accountId).orElseThrow(() ->
                 new IllegalArgumentException("Account with id '" + accountId + "' not found."));
-
-        Map<String, Object> map = new HashMap<>();
-        map.put("accountId", account.getAccountId());
-        map.put("userId", account.getUserId());
-        map.put("balance", account.getBalance());
-        return map;
-    }
-
-    @Override
-    public Double getBalanceById(Long accountId) {
-        var account = accountRepository.findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account with id '" + accountId + "' not found."));
         return account.getBalance();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AccountDTO> getAccountsByUserId(Long userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new IllegalArgumentException("User with id '" + userId + "' not found.");
+        }
+
+        return accountRepository.findByUserId(userId).stream()
+                .map(account -> new AccountDTO(
+                        account.getAccountId(),
+                        account.getUserId(),
+                        account.getBalance()))
+                .toList();
+
     }
 }

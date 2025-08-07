@@ -1,25 +1,17 @@
 package utilities;
 
-import io.github.cdimascio.dotenv.Dotenv;
 import org.flywaydb.core.Flyway;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import utilities.interfaces.DatabaseMigrationUtility;
 
-
+@Component
 public class DatabaseMigrationUtilityImpl implements DatabaseMigrationUtility {
     private final Flyway flyway;
 
-    public DatabaseMigrationUtilityImpl() {
-        Dotenv dotenv = Dotenv.load();
-
-        this.flyway = Flyway.configure()
-                .dataSource(
-                        dotenv.get("DB_URL"),
-                        dotenv.get("DB_USERNAME"),
-                        dotenv.get("DB_PASSWORD")
-                )
-                .locations("classpath:db/migrations")
-                .baselineOnMigrate(true)
-                .load();
+    @Autowired
+    public DatabaseMigrationUtilityImpl(Flyway flyway) {
+        this.flyway = flyway;
     }
 
     @Override
