@@ -9,14 +9,18 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import services.interfaces.TransactionService;
 
 import java.util.List;
 
+@Validated
 @RestController
 @RequestMapping("/transactions")
 @Tag(name = "Transaction Controller", description = "Управление транзакциями")
@@ -31,13 +35,10 @@ public class TransactionController {
     @Operation(summary = "Создать новую транзакцию")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Транзакция успешно создана"),
-            @ApiResponse(responseCode = "400", description = "Некорректные данные транзакции"),
+            @ApiResponse(responseCode = "400", description = "Некорректные данные транзакции")
     })
-    @PostMapping("/create")
-    // Тут небольшой логический момент. Как мне видится, api не должно иметь возможности создавать транзакцию.
-    // Этим должен заниматься PaymentService. В таком случае, весь этот код надо переделать под утилиту.
-    // --НО в текущей реализации оставим как есть--
-    public ResponseEntity<Void> create(@RequestBody TransactionDTO transaction) {
+    @PostMapping("/")
+    public ResponseEntity<Void> create(@RequestBody @NotNull(message = "Данные транзакции обязательны") TransactionDTO transaction) {
         transactionService.create(
                 transaction.getFromAccountId(),
                 transaction.getToAccountId(),
@@ -51,31 +52,48 @@ public class TransactionController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Транзакция найдена",
                     content = @Content(schema = @Schema(implementation = TransactionDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Некорректный ID транзакции"),
             @ApiResponse(responseCode = "404", description = "Транзакция не найдена")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<TransactionDTO> read(@PathVariable Long id) {
+    public ResponseEntity<TransactionDTO> read(
+            @PathVariable @NotNull(message = "ID транзакции обязателен")
+            @Positive(message = "ID транзакции должен быть больше 0") Long id) {
         return ResponseEntity.ok(transactionService.read(id));
     }
 
     @Operation(summary = "Удалить транзакцию")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Транзакция удалена"),
+            @ApiResponse(responseCode = "400", description = "Некорректный ID транзакции"),
             @ApiResponse(responseCode = "404", description = "Транзакция не найдена")
     })
-    @DeleteMapping("/delete/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(
+            @PathVariable @NotNull(message = "ID транзакции обязателен")
+            @Positive(message = "ID транзакции должен быть больше 0") Long id) {
         transactionService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "Получить транзакции счета с фильтрацией по типу операции")
+    @Operation(summary = "Получить транзакции счёта с фильтрацией по типу операции")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Список транзакций",
-                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = TransactionDTO.class))))
+            @ApiResponse(responseCode = "200", description = "Список транзакций найден",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = TransactionDTO.class)))),
+            @ApiResponse(responseCode = "204", description = "Транзакций по указанным фильтрам не найдено")
     })
     @GetMapping("/all")
-    public List<TransactionDTO> getTransactionsByAccountIdAndTypeTransaction(@RequestParam Long Id, @RequestParam TypeTransaction typeTransaction) {
-        return transactionService.getTransactionsByAccountIdAndTypeTransaction(Id, typeTransaction);
+    public ResponseEntity<List<TransactionDTO>> getTransactionsByAccountIdAndTypeTransaction(
+            @RequestParam @NotNull(message = "ID счёта обязателен")
+            @Positive(message = "ID счёта должен быть больше 0") Long id,
+            @RequestParam(required = false) TypeTransaction typeTransaction) {
+
+        List<TransactionDTO> transactions = transactionService.getTransactionsByAccountIdAndTypeTransaction(id, typeTransaction);
+
+        if (transactions.isEmpty()) {
+            return ResponseEntity.noContent().build();
+        }
+
+        return ResponseEntity.ok(transactions);
     }
 }

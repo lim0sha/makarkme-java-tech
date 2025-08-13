@@ -19,7 +19,7 @@ public class FriendManagementServiceImpl implements FriendManagementService {
 
     @Override
     @Transactional
-    public void create(Long userId, Long friendId) {
+    public void add(Long userId, Long friendId) {
         var user = userRepository.findById(userId).orElseThrow(() ->
                 new IllegalArgumentException("User with id '" + userId + "' not found."));
         var friend = userRepository.findById(friendId).orElseThrow(() ->
@@ -53,7 +53,7 @@ public class FriendManagementServiceImpl implements FriendManagementService {
     }
 
     @Override
-    public void delete(Long userId, Long friendId) {
+    public void remove(Long userId, Long friendId) {
         var user = userRepository.findById(userId).orElseThrow(() ->
                 new IllegalArgumentException("User with id '" + userId + "' not found."));
         var friend = userRepository.findById(friendId).orElseThrow(() ->
