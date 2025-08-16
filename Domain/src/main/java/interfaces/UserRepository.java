@@ -1,16 +1,18 @@
 package interfaces;
 
-import entities.resultTypes.UserResult;
 import entities.User;
+import entities.enums.HairColor;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
+import java.util.List;
 
-public interface UserRepository {
-    UserResult saveUser(User user);
+@Repository
+public interface UserRepository extends JpaRepository<User, Long> {
+    boolean existsByLogin(String login);
 
-    UserResult updateUser(User user);
-
-    UserResult deleteUser(User user);
-
-    Optional<User> findById(Long userId);
+    @Query("SELECT u FROM User u WHERE (:hairColor IS NULL OR u.hairColor = :hairColor) AND (:gender IS NULL OR u.gender = :gender)")
+    List<User> findFilteredUsers(@Param("hairColor") HairColor hairColor, @Param("gender") String gender);
 }

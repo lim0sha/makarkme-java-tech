@@ -1,33 +1,37 @@
 package services;
 
-import entities.Account;
+import entities.DTO.TransactionDTO;
 import entities.Transaction;
 import entities.enums.TypeTransaction;
 import interfaces.AccountRepository;
 import interfaces.TransactionRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import services.interfaces.TransactionService;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
+@Service
 public class TransactionServiceImpl implements TransactionService {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
 
+    @Autowired
     public TransactionServiceImpl(AccountRepository accountRepository, TransactionRepository transactionRepository) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
     }
 
-    public void createTransaction(Long fromAccountId, Long toAccountId, Double amount, TypeTransaction typeTransaction) {
-
-        if (accountRepository.findById(fromAccountId).isEmpty()) {
+    @Override
+    @Transactional
+    public void create(Long fromAccountId, Long toAccountId, Double amount, TypeTransaction typeTransaction) {
+        if (!accountRepository.existsById(fromAccountId)) {
             throw new IllegalArgumentException("Account with id '" + fromAccountId + "' not found.");
         }
-        if (accountRepository.findById(toAccountId).isEmpty()) {
+        if (!accountRepository.existsById(toAccountId)) {
             throw new IllegalArgumentException("Account with id '" + toAccountId + "' not found.");
         }
-
 
         var transaction = Transaction.builder()
                 .transactionId(null)
@@ -37,34 +41,49 @@ public class TransactionServiceImpl implements TransactionService {
                 .typeTransaction(typeTransaction)
                 .build();
 
-        var result = transactionRepository.saveTransaction(transaction);
-        if (!result.getResult()) {
-            throw new IllegalArgumentException("Failed to save transaction: " + result.getMessage());
+        try {
+            transactionRepository.save(transaction);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to save transaction: " + ex.getMessage());
         }
     }
 
     @Override
-    public void deleteTransaction(Long transactionId) {
+    @Transactional(readOnly = true)
+    public TransactionDTO read(Long transactionId) {
         var transaction = transactionRepository.findById(transactionId).orElseThrow(() ->
                 new IllegalArgumentException("Transaction with id '" + transactionId + "' not found."));
 
-        var result = transactionRepository.deleteTransaction(transaction);
-        if (!result.getResult()) {
-            throw new IllegalArgumentException("Failed to delete transaction: " + result.getMessage());
+        return new TransactionDTO(transaction.getTransactionId(), transaction.getFromAccountId(), transaction.getToAccountId(), transaction.getAmount(), transaction.getTypeTransaction());
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long transactionId) {
+        if (!transactionRepository.existsById(transactionId)) {
+            throw new IllegalArgumentException("Transaction with id '" + transactionId + "' not found.");
+        }
+
+        try {
+            transactionRepository.deleteById(transactionId);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to delete transaction: " + ex.getMessage());
         }
     }
 
     @Override
-    public Map<String, Object> getTransaction(Long transactionId) {
-        var transaction = transactionRepository.findById(transactionId).orElseThrow(() ->
-                new IllegalArgumentException("Transaction with id '" + transactionId + "' not found."));
+    public List<TransactionDTO> getTransactionsByAccountIdAndTypeTransaction(Long accountId, TypeTransaction typeTransaction) {
+        if (!accountRepository.existsById(accountId)) {
+            throw new IllegalArgumentException("Account with id '" + accountId + "' not found.");
+        }
 
-        Map<String, Object> map = new HashMap<>();
-        map.put("transactionId", transaction.getTransactionId());
-        map.put("fromAccountId", transaction.getFromAccountId());
-        map.put("toAccountId", transaction.getToAccountId());
-        map.put("amount", transaction.getAmount());
-        map.put("typeTransaction", transaction.getTypeTransaction());
-        return map;
+        return transactionRepository.findByAccountIdAndTypeTransaction(accountId, typeTransaction).stream()
+                .map(transaction -> new TransactionDTO(
+                        transaction.getTransactionId(),
+                        transaction.getFromAccountId(),
+                        transaction.getToAccountId(),
+                        transaction.getAmount(),
+                        transaction.getTypeTransaction()))
+                .toList();
     }
 }

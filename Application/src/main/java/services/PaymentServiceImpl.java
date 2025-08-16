@@ -1,6 +1,9 @@
 package services;
 
 import interfaces.AccountRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import services.interfaces.TransactionService;
 import utilities.interfaces.FriendshipUtility;
 import services.interfaces.PaymentService;
@@ -9,11 +12,13 @@ import java.util.Objects;
 
 import static entities.enums.TypeTransaction.*;
 
+@Service
 public class PaymentServiceImpl implements PaymentService {
     private final AccountRepository accountRepository;
     private final FriendshipUtility friendshipUtility;
     private final TransactionService transactionService;
 
+    @Autowired
     public PaymentServiceImpl(AccountRepository accountRepository, FriendshipUtility friendshipUtility, TransactionService transactionService) {
         this.accountRepository = accountRepository;
         this.friendshipUtility = friendshipUtility;
@@ -21,6 +26,7 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
+    @Transactional
     public void replenishAmount(Long accountId, Double amount) {
         var account = accountRepository.findById(accountId).orElseThrow(() ->
                 new IllegalArgumentException("Account with id '" + accountId + "' not found."));
@@ -28,17 +34,20 @@ public class PaymentServiceImpl implements PaymentService {
         if (amount <= 0) {
             throw new IllegalArgumentException("Amount must be greater than zero.");
         }
-        transactionService.createTransaction(accountId, accountId, amount, REPLENISHMENT);
-        double newBalance = account.getBalance() + amount;
+
+        transactionService.create(accountId, accountId, amount, REPLENISHMENT);
+        Double newBalance = account.getBalance() + amount;
         account.setBalance(newBalance);
 
-        var accountResult = accountRepository.updateAccount(account);
-        if (!accountResult.getResult()) {
-            throw new IllegalArgumentException("Failed to update account: " + accountResult.getMessage());
+        try {
+            accountRepository.save(account);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to update account: " + ex.getMessage());
         }
     }
 
     @Override
+    @Transactional
     public void withdrawAmount(Long accountId, Double amount) {
         var account = accountRepository.findById(accountId).orElseThrow(() ->
                 new IllegalArgumentException("Account with id '" + accountId + "' not found."));
@@ -49,17 +58,20 @@ public class PaymentServiceImpl implements PaymentService {
         if (account.getBalance() < amount) {
             throw new IllegalArgumentException("Insufficient funds.");
         }
-        transactionService.createTransaction(accountId, accountId, amount, WITHDRAWAL);
+
+        transactionService.create(accountId, accountId, amount, WITHDRAWAL);
         Double newBalance = account.getBalance() - amount;
         account.setBalance(newBalance);
 
-        var accountResult = accountRepository.updateAccount(account);
-        if (!accountResult.getResult()) {
-            throw new IllegalArgumentException("Failed to update account: " + accountResult.getMessage());
+        try {
+            accountRepository.save(account);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to update account: " + ex.getMessage());
         }
     }
 
     @Override
+    @Transactional
     public void transfer(Long fromAccountId, Long toAccountId, Double amount) {
         var fromAccount = accountRepository.findById(fromAccountId).orElseThrow(() ->
                 new IllegalArgumentException("Account with id '" + fromAccountId + "' not found."));
@@ -73,7 +85,7 @@ public class PaymentServiceImpl implements PaymentService {
         Long fromUserId = fromAccount.getUserId();
         Long toUserId = toAccount.getUserId();
 
-        Double commission;
+        double commission; // что-то тут ругается компилятор, если поставить Double
         if (Objects.equals(fromUserId, toUserId)) {
             commission = 0.0;
         } else if (friendshipUtility.isFriend(fromUserId, toUserId)) {
@@ -93,15 +105,18 @@ public class PaymentServiceImpl implements PaymentService {
         fromAccount.setBalance(newBalanceFromAccount);
         toAccount.setBalance(newBalanceToAccount);
 
-        transactionService.createTransaction(fromAccountId, toAccountId, amount, TRANSFER);
+        transactionService.create(fromAccountId, toAccountId, amount, TRANSFER);
 
-        var fromAccountResult = accountRepository.updateAccount(fromAccount);
-        if (!fromAccountResult.getResult()) {
-            throw new IllegalArgumentException("Failed to update account: " + fromAccountResult.getMessage());
+        try {
+            accountRepository.save(fromAccount);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to update fromAccount: " + ex.getMessage());
         }
-        var toAccountResult = accountRepository.updateAccount(toAccount);
-        if (!toAccountResult.getResult()) {
-            throw new IllegalArgumentException("Failed to update account: " + toAccountResult.getMessage());
+
+        try {
+            accountRepository.save(toAccount);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to update toAccount: " + ex.getMessage());
         }
     }
 }

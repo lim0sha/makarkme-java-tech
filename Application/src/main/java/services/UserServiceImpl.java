@@ -1,23 +1,34 @@
 package services;
 
-import entities.enums.HairColor;
+import entities.DTO.UserDTO;
 import entities.User;
+import entities.enums.HairColor;
 import interfaces.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import services.interfaces.UserService;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Collections;
+import java.util.List;
 
+@Service
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
 
+    @Autowired
     public UserServiceImpl(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
     @Override
-    public void createUser(String login, String name, Integer age, String gender, HairColor hairColor) {
+    @Transactional
+    public void create(String login, String name, Integer age, String gender, HairColor hairColor) {
+        if (userRepository.existsByLogin(login)) {
+            throw new IllegalArgumentException("User with login '" + login + "' already exists.");
+        }
+
         var user = User.builder().
                 userId(null)
                 .login(login)
@@ -28,16 +39,27 @@ public class UserServiceImpl implements UserService {
                 .hairColor(hairColor)
                 .build();
 
-        var result = userRepository.saveUser(user);
-        if (!result.getResult()) {
-            throw new IllegalArgumentException("Failed to save user: " + result.getMessage());
+        try {
+            userRepository.save(user);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to save user: " + ex.getMessage());
         }
     }
 
     @Override
-    public void updateUser(Long userId, String login, String name, Integer age, String gender, HairColor hairColor) {
+    @Transactional(readOnly = true)
+    public UserDTO read(Long userId) {
         var user = userRepository.findById(userId).orElseThrow(() ->
-                new IllegalArgumentException("Account with id '" + userId + "' not found."));
+                new IllegalArgumentException("User with id '" + userId + "' not found."));
+
+        return new UserDTO(user.getUserId(), user.getLogin(), user.getName(), user.getAge(), user.getGender(), user.getFriendsId(), user.getHairColor());
+    }
+
+    @Override
+    @Transactional
+    public void update(Long userId, String login, String name, Integer age, String gender, HairColor hairColor) {
+        var user = userRepository.findById(userId).orElseThrow(() ->
+                new IllegalArgumentException("User with id '" + userId + "' not found."));
 
         user.setLogin(login);
         user.setName(name);
@@ -45,35 +67,61 @@ public class UserServiceImpl implements UserService {
         user.setGender(gender);
         user.setHairColor(hairColor);
 
-        var result = userRepository.updateUser(user);
-        if (!result.getResult()) {
-            throw new IllegalArgumentException("Failed to update user: " + result.getMessage());
+        try {
+            userRepository.save(user);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to update user: " + ex.getMessage());
         }
     }
 
     @Override
-    public void deleteUser(Long userId) {
+    @Transactional
+    public void delete(Long userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new IllegalArgumentException("User with id '" + userId + "' not found.");
+        }
+
+        try {
+            userRepository.deleteById(userId);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to delete user: " + ex.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserDTO> getAllUsersFiltered(HairColor hairColor, String gender) {
+        return userRepository.findFilteredUsers(hairColor, gender).stream()
+                .map(user -> new UserDTO(
+                        user.getUserId(),
+                        user.getLogin(),
+                        user.getName(),
+                        user.getAge(),
+                        user.getGender(),
+                        user.getFriendsId(),
+                        user.getHairColor()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserDTO> getUserFriends(Long userId) {
         var user = userRepository.findById(userId).orElseThrow(() ->
-                new IllegalArgumentException("Account with id '" + userId + "' not found."));
+                new IllegalArgumentException("User with id '" + userId + "' not found."));
 
-        var result = userRepository.deleteUser(user);
-        if (!result.getResult()) {
-            throw new IllegalArgumentException("Failed to delete user: " + result.getMessage());
+        if (user.getFriendsId().isEmpty()) {
+            return Collections.emptyList();
         }
-    }
 
-    @Override
-    public Map<String, Object> getUser(Long userId) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User with id '" + userId + "' not found."));
-
-        Map<String, Object> map = new HashMap<>();
-        map.put("userId", user.getUserId());
-        map.put("login", user.getLogin());
-        map.put("name", user.getName());
-        map.put("age", user.getAge());
-        map.put("gender", user.getGender());
-        map.put("friendsId", user.getFriendsId());
-        map.put("hairColor", user.getHairColor());
-        return map;
+        return userRepository.findAllById(user.getFriendsId()).stream()
+                .map(friend -> new UserDTO(
+                        friend.getUserId(),
+                        friend.getLogin(),
+                        friend.getName(),
+                        friend.getAge(),
+                        friend.getGender(),
+                        friend.getFriendsId(),
+                        friend.getHairColor()))
+                .toList();
     }
 }

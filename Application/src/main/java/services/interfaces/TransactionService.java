@@ -1,13 +1,16 @@
 package services.interfaces;
 
+import entities.DTO.TransactionDTO;
 import entities.enums.TypeTransaction;
 
-import java.util.Map;
+import java.util.List;
 
 public interface TransactionService {
-    void createTransaction(Long fromAccountId, Long toAccountId, Double amount, TypeTransaction typeTransaction);
+    void create(Long fromAccountId, Long toAccountId, Double amount, TypeTransaction typeTransaction);
 
-    void deleteTransaction(Long transactionId);
+    TransactionDTO read(Long transactionId);
 
-    Map<String, Object> getTransaction(Long transactionId);
+    void delete(Long transactionId);
+
+    List<TransactionDTO> getTransactionsByAccountIdAndTypeTransaction(Long accountId, TypeTransaction typeTransaction);
 }

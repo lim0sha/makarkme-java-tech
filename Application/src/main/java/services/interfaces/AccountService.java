@@ -1,16 +1,20 @@
 package services.interfaces;
 
-import java.util.Map;
+import entities.DTO.AccountDTO;
+
+import java.util.List;
 
 public interface AccountService {
-    void createAccount(Long userId);
+    void create(Long userId);
 
-    void updateAccount(Long accountId, Long userId);
+    AccountDTO read(Long accountId);
 
-    void deleteAccount(Long accountId);
+    void update(Long accountId, Long userId);
 
-    Map<String, Object> getAccount(Long accountId);
+    void delete(Long accountId);
 
-    Double getBalanceById(Long accountId);
+    Double getBalanceByAccountId(Long accountId);
+
+    List<AccountDTO> getAccountsByUserId(Long userId);
 
 }
